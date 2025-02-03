@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en" x-data="sellForm()">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CampTrade - Sell Item</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Alpine.js CDN -->
+  <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <script>
+    function sellForm() {
+      return {
+        productType: 'buy', // default selection for listing type
+        submitForm(event) {
+          event.preventDefault();
+          // In a real application, you would validate and send form data to the backend
+          alert('Your product has been listed successfully!');
+          window.location.href = 'home.html';
+        }
+      }
+    }
+  </script>
+</head>
+<body class="bg-gray-100">
+  <!-- Navbar -->
+  <nav class="bg-white shadow-md p-4 flex justify-between items-center">
+    <div class="flex items-center space-x-4">
+      <a href="home.html" class="text-2xl font-bold">CampTrade</a>
+      <a href="home.html" class="text-gray-600 hover:text-gray-800">Home</a>
+      <a href="buy.html" class="text-gray-600 hover:text-gray-800">Buy</a>
+      <a href="sell.html" class="text-gray-600 hover:text-gray-800">Sell</a>
+      <a href="rent.html" class="text-gray-600 hover:text-gray-800">Rent</a>
+      <a href="donate.html" class="text-gray-600 hover:text-gray-800">Donate</a>
+    </div>
+    <div>
+      <a href="login.html" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Logout</a>
+    </div>
+  </nav>
+
+  <!-- Sell Page Header -->
+  <header class="bg-blue-500 text-white text-center py-6">
+    <h2 class="text-3xl font-bold">Sell or Rent Your Item</h2>
+    <p class="mt-2">Fill out the form below to list your item for sale or rent.</p>
+  </header>
+
+  <!-- Sell Form Section -->
+  <section class="p-6">
+    <div class="bg-white p-6 rounded shadow max-w-lg mx-auto">
+      <form @submit="submitForm($event)" class="space-y-4">
+        <div>
+          <label for="productName" class="block text-gray-700">Product Name</label>
+          <input type="text" id="productName" name="productName" placeholder="Enter product name" class="mt-1 w-full p-2 border rounded" required>
+        </div>
+        <div>
+          <label for="productDetails" class="block text-gray-700">Product Details</label>
+          <textarea id="productDetails" name="productDetails" placeholder="Enter product details" class="mt-1 w-full p-2 border rounded" rows="4" required></textarea>
+        </div>
+        <div>
+          <label for="category" class="block text-gray-700">Category</label>
+          <select id="category" name="category" class="mt-1 w-full p-2 border rounded" required>
+            <option value="">Select Category</option>
+            <option value="books">Books</option>
+            <option value="electronics">Electronics</option>
+            <option value="accessories">Accessories</option>
+            <option value="miscellaneous">Miscellaneous</option>
+          </select>
+        </div>
+        <div>
+          <label for="productImage" class="block text-gray-700">Product Image</label>
+          <input type="file" id="productImage" name="productImage" accept="image/*" class="mt-1 w-full p-2 border rounded" required>
+        </div>
+        <div>
+          <label for="expectedPrice" class="block text-gray-700">Expected Price</label>
+          <input type="number" id="expectedPrice" name="expectedPrice" placeholder="Enter expected price" class="mt-1 w-full p-2 border rounded" required>
+        </div>
+        <!-- Listing Type: Buy or Rent -->
+        <div class="flex items-center space-x-4">
+          <span class="text-gray-700">Listing Type:</span>
+          <label class="inline-flex items-center">
+            <input type="radio" name="listingType" value="buy" x-model="productType" class="form-radio" checked>
+            <span class="ml-2">Buy</span>
+          </label>
+          <label class="inline-flex items-center">
+            <input type="radio" name="listingType" value="rent" x-model="productType" class="form-radio">
+            <span class="ml-2">Rent</span>
+          </label>
+        </div>
+        <!-- If Rent is selected, show Expected Price per Day field -->
+        <div x-show="productType === 'rent'">
+          <label for="pricePerDay" class="block text-gray-700">Expected Price per Day (Rent)</label>
+          <input type="number" id="pricePerDay" name="pricePerDay" placeholder="Enter expected price per day" class="mt-1 w-full p-2 border rounded">
+        </div>
+        <button type="submit" class="w-full bg-blue-600 text-white p-2 rounded hover:bg-blue-700 transition">Submit Listing</button>
+      </form>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="bg-gray-800 text-white text-center py-4 mt-10">
+    <p>&copy; 2025 CampTrade. All rights reserved.</p>
+  </footer>
+</body>
+</html>

@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en" x-data="authForm()">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CampTrade - Login / Sign Up</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Alpine.js -->
+  <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <script>
+    function authForm() {
+      return {
+        mode: 'login', // 'login' or 'signup'
+        switchMode() {
+          this.mode = this.mode === 'login' ? 'signup' : 'login';
+        },
+        async submitForm(event) {
+    event.preventDefault();
+    const formData = new FormData(event.target);
+    const action = this.mode === 'login' ? '/php/login.php' : '/php/signup.php';
+
+    try {
+        const response = await fetch(`http://localhost${action}`, {
+            method: "POST",
+            body: formData
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! Status: ${response.status}`);
+        }
+
+        const result = await response.json();
+
+        if (result.success) {
+            alert("Login successful!");
+            window.location.href = "home.php"; // Redirect on success
+        } else {
+            alert(result.message || "An error occurred. Please try again.");
+        }
+    } catch (error) {
+        console.error("Fetch error:", error);
+        alert("Failed to connect to the server. Check console for details.");
+    }
+}
+
+
+
+      }
+    }
+  </script>
+</head>
+<body class="bg-gray-100 flex items-center justify-center h-screen">
+  <div class="bg-white p-8 rounded shadow-md w-full max-w-xl">
+    <h2 class="text-2xl font-bold mb-6 text-center" x-text="mode === 'login' ? 'Login to CampTrade' : 'Sign Up for CampTrade'"></h2>
+
+    <form @submit="submitForm" class="space-y-4">
+      <!-- Sign Up fields -->
+      <template x-if="mode === 'signup'">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label for="fullName" class="block text-gray-700">Full Name</label>
+            <input type="text" id="fullName" name="full_name" class="mt-1 w-full p-2 border rounded" required>
+          </div>
+          <div>
+            <label for="userId" class="block text-gray-700">User-ID (Unique)</label>
+            <input type="text" id="userId" name="user_id" class="mt-1 w-full p-2 border rounded" required>
+          </div>
+          <div>
+            <label for="email" class="block text-gray-700">Email</label>
+            <input type="email" id="email" name="email" class="mt-1 w-full p-2 border rounded" required>
+          </div>
+          <div>
+            <label for="mobile" class="block text-gray-700">Mobile Number</label>
+            <input type="tel" id="mobile" name="mobile" class="mt-1 w-full p-2 border rounded" required>
+          </div>
+          <div>
+            <label for="university" class="block text-gray-700">University Name</label>
+            <input type="text" id="university" name="university" class="mt-1 w-full p-2 border rounded" required>
+          </div>
+          <div>
+            <label for="roll" class="block text-gray-700">Roll Number</label>
+            <input type="text" id="roll" name="roll_no" class="mt-1 w-full p-2 border rounded" required>
+          </div>
+          <div>
+            <label for="yearOfStudy" class="block text-gray-700">Year of Study</label>
+            <input type="number" id="yearOfStudy" name="year_of_study" class="mt-1 w-full p-2 border rounded" required>
+          </div>
+          <div>
+            <label for="dept" class="block text-gray-700">Department</label>
+            <input type="text" id="dept" name="department" class="mt-1 w-full p-2 border rounded" required>
+          </div>
+        </div>
+      </template>
+
+      <!-- Login & common fields -->
+      <div>
+        <label for="loginIdentifier" class="block text-gray-700">Email or User ID</label>
+        <input type="text" id="loginIdentifier" name="loginIdentifier" class="mt-1 w-full p-2 border rounded" required>
+      </div>
+      <div>
+        <label for="password" class="block text-gray-700">Password</label>
+        <input type="password" id="password" name="password_hash" class="mt-1 w-full p-2 border rounded" required>
+      </div>
+
+      <button type="submit" class="w-full bg-blue-600 text-white p-2 rounded hover:bg-blue-700 transition">
+        <span x-text="mode === 'login' ? 'Login' : 'Sign Up'"></span>
+      </button>
+    </form>
+
+    <div class="mt-4 text-center">
+      <button @click="switchMode()" class="text-blue-600 hover:underline">
+        <span x-text="mode === 'login' ? 'New here? Create an account' : 'Already have an account? Login'"></span>
+      </button>
+    </div>
+  </div>
+</body>
+</html>
