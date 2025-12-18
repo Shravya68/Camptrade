@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Campus Wishlist - CampTrade</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style> 
+        body { font-family: 'Inter', sans-serif; } 
+    </style>
+</head>
+<body class="bg-gray-100">
+
+    <header class="bg-white shadow-md sticky top-0 z-50">
+        <nav class="container mx-auto px-6 py-4 flex justify-between items-center">
+            <a href="index.html" class="text-2xl font-bold text-blue-600">CampTrade</a>
+            <div class="hidden md:flex items-center space-x-6">
+                <a href="index.html" class="text-gray-600 hover:text-blue-600">Browse</a>
+                <a href="sell.html" class="text-gray-600 hover:text-blue-600">Sell</a>
+                <a href="rent.html" class="text-gray-600 hover:text-blue-600">Rent</a>
+                <a href="donate.html" class="text-gray-600 hover:text-blue-600">Donate</a>
+                <a href="wishlist.html" class="text-blue-600 font-semibold">Wishlist</a>
+            </div>
+            <div id="auth-links" class="flex items-center space-x-4">
+                <a href="login.html" class="px-4 py-2 text-gray-700 font-semibold border border-gray-300 rounded-lg hover:bg-gray-100">Log In</a>
+                <a href="signup.html" class="px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700">Sign Up</a>
+            </div>
+            <div id="user-menu" class="hidden items-center space-x-4">
+                 <a href="profile.html" id="profileLink" class="font-semibold text-gray-700 hover:text-blue-600"></a>
+                 <button id="logoutBtn" class="px-4 py-2 bg-red-500 text-white font-semibold rounded-lg hover:bg-red-600">Log Out</button>
+            </div>
+        </nav>
+    </header>
+
+    <main class="container mx-auto px-6 py-12">
+        <div class="max-w-4xl mx-auto">
+            <h1 class="text-4xl font-bold text-center mb-4">Campus Wishlist</h1>
+            <p class="text-center text-gray-600 mb-12">See what your fellow students are looking for. Maybe you have just what they need!</p>
+
+            <div id="wishlist-container" class="space-y-4">
+                <p class="text-center text-gray-500">Loading wishes...</p>
+            </div>
+        </div>
+    </main>
+
+    <footer class="bg-gray-800 text-white mt-20">
+        <div class="container mx-auto px-6 py-8 text-center">
+            <p>&copy; 2025 CampTrade. Built by students, for students.</p>
+        </div>
+    </footer>
+
+    <!-- Fulfill Wish Modal -->
+    <div id="fulfillWishModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
+        <div class="bg-white p-8 rounded-lg shadow-2xl w-full max-w-sm text-center transform transition-all duration-300 scale-95">
+            <h2 class="text-2xl font-bold mb-4">Fulfill this Wish</h2>
+            <p class="mb-6">You have this item! How would you like to list it?</p>
+            <div class="flex flex-col space-y-3">
+                <a id="fulfillSellLink" href="#" class="block w-full bg-blue-600 text-white font-semibold py-3 rounded-lg hover:bg-blue-700">Sell It</a>
+                <a id="fulfillRentLink" href="#" class="block w-full bg-green-600 text-white font-semibold py-3 rounded-lg hover:bg-green-700">Rent it Out</a>
+                <a id="fulfillDonateLink" href="#" class="block w-full bg-indigo-600 text-white font-semibold py-3 rounded-lg hover:bg-indigo-700">Donate It</a>
+            </div>
+            <button id="closeFulfillModal" class="mt-6 text-gray-600 hover:text-black">Cancel</button>
+        </div>
+    </div>
+
+    <script type="module">
+        const firebaseConfig = {
+          apiKey: "AIzaSyCqtPN9O7vnxltylayJzoXY8n_5A9T2D4k",
+          authDomain: "camptrade-1f932.firebaseapp.com",
+          projectId: "camptrade-1f932",
+          storageBucket: "camptrade-1f932.appspot.com",
+          messagingSenderId: "990486537343",
+          appId: "1:990486537343:web:46ba92fe33690d7ebd0b4a"
+        };
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-database.js";
+        
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getDatabase(app);
+
+        // --- Auth Links and Modal Logic ---
+        const authLinks = document.getElementById('auth-links');
+        const userMenu = document.getElementById('user-menu');
+        const profileLink = document.getElementById('profileLink');
+        const fulfillModal = document.getElementById('fulfillWishModal');
+        const closeFulfillModal = document.getElementById('closeFulfillModal');
+
+        const openModal = (modal) => {
+            modal.classList.remove('hidden');
+            setTimeout(() => modal.querySelector('div').classList.remove('scale-95'), 10);
+        };
+        const closeModal = (modal) => {
+            modal.querySelector('div').classList.add('scale-95');
+            setTimeout(() => modal.classList.add('hidden'), 300);
+        };
+        closeFulfillModal.addEventListener('click', () => closeModal(fulfillModal));
+        window.addEventListener('click', (e) => { if (e.target === fulfillModal) closeModal(fulfillModal) });
+
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                authLinks.classList.add('hidden');
+                userMenu.classList.remove('hidden');
+                userMenu.classList.add('flex');
+                profileLink.textContent = user.email;
+            } else {
+                authLinks.classList.remove('hidden');
+                userMenu.classList.add('hidden');
+            }
+        });
+        document.getElementById('logoutBtn').addEventListener('click', () => signOut(auth).then(() => window.location.href = 'home.html'));
+
+        const displayWishes = () => {
+            const wishlistContainer = document.getElementById('wishlist-container');
+            const wishesRef = ref(db, 'wishes');
+
+            onValue(wishesRef, (snapshot) => {
+                wishlistContainer.innerHTML = '';
+                if (snapshot.exists()) {
+                    const wishes = [];
+                    snapshot.forEach(child => {
+                        wishes.push({ id: child.key, ...child.val() });
+                    });
+
+                    wishes.sort((a, b) => b.createdAt - a.createdAt).forEach(wish => {
+                        const wishCard = document.createElement('div');
+                        wishCard.className = "bg-white p-6 rounded-lg shadow-md flex flex-col md:flex-row justify-between items-start md:items-center";
+                        wishCard.innerHTML = `
+                            <div>
+                                <h3 class="text-xl font-bold">${wish.itemName}</h3>
+                                <p class="text-gray-600 mt-1">${wish.description || 'No additional details provided.'}</p>
+                                <p class="text-xs text-gray-500 mt-2">Wished by: ${wish.wisherEmail}</p>
+                            </div>
+                            <button class="fulfill-btn mt-4 md:mt-0 bg-green-500 text-white font-semibold px-5 py-2 rounded-lg hover:bg-green-600 transition duration-300">I have this!</button>
+                        `;
+                        
+                        wishCard.querySelector('.fulfill-btn').addEventListener('click', () => {
+                            const encodedItemName = encodeURIComponent(wish.itemName);
+                            document.getElementById('fulfillSellLink').href = `sell.html?itemName=${encodedItemName}`;
+                            document.getElementById('fulfillRentLink').href = `rent.html?itemName=${encodedItemName}`;
+                            document.getElementById('fulfillDonateLink').href = `donate.html?itemName=${encodedItemName}`;
+                            openModal(fulfillModal);
+                        });
+
+                        wishlistContainer.appendChild(wishCard);
+                    });
+
+                } else {
+                    wishlistContainer.innerHTML = '<p class="text-center text-gray-500">The wishlist is empty. Be the first to add a wish from your profile!</p>';
+                }
+            });
+        };
+
+        displayWishes();
+    </script>
+</body>
+</html>
+

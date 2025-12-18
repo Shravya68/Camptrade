@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Donate an Item - CampTrade</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style> 
+        body { font-family: 'Inter', sans-serif; } 
+        button:disabled { opacity: 0.6; cursor: not-allowed; }
+    </style>
+</head>
+<body class="bg-gray-100">
+
+    <header class="bg-white shadow-md sticky top-0 z-50">
+        <nav class="container mx-auto px-6 py-4 flex justify-between items-center">
+            <a href="home.html" class="text-2xl font-bold text-blue-600">CampTrade</a>
+            <div class="hidden md:flex items-center space-x-6">
+                <a href="home.html" class="text-gray-600 hover:text-blue-600">Browse</a>
+                <a href="sell.html" class="text-gray-600 hover:text-blue-600">Sell</a>
+                <a href="rent.html" class="text-gray-600 hover:text-blue-600">Rent</a>
+                <a href="donate.html" class="text-blue-600 font-semibold">Donate</a>
+            </div>
+            <div id="auth-links" class="flex items-center space-x-4">
+                <a href="login.html" class="px-4 py-2 text-gray-700 font-semibold border border-gray-300 rounded-lg hover:bg-gray-100">Log In</a>
+                <a href="signup.html" class="px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700">Sign Up</a>
+            </div>
+            <div id="user-menu" class="hidden items-center space-x-4">
+                 <a href="profile.html" id="profileLink" class="font-semibold text-gray-700 hover:text-blue-600"></a>
+                 <button id="logoutBtn" class="px-4 py-2 bg-red-500 text-white font-semibold rounded-lg hover:bg-red-600">Log Out</button>
+            </div>
+        </nav>
+    </header>
+
+    <main class="container mx-auto px-6 py-12">
+        <div class="max-w-2xl mx-auto bg-white p-8 rounded-lg shadow-lg">
+            <h1 class="text-3xl font-bold mb-6 text-center">List Your Item for Donation</h1>
+            <form id="donateItemForm">
+                <div class="mb-4">
+                    <label for="donateItemTitle" class="block text-gray-700 font-medium mb-2">Item Title</label>
+                    <input type="text" id="donateItemTitle" class="w-full px-4 py-2 border border-gray-300 rounded-lg" required>
+                </div>
+                <div class="mb-4">
+                    <label for="donateItemDescription" class="block text-gray-700 font-medium mb-2">Description</label>
+                    <textarea id="donateItemDescription" rows="3" class="w-full px-4 py-2 border border-gray-300 rounded-lg" required></textarea>
+                </div>
+                 <div class="mb-4">
+                    <label for="donateItemCategory" class="block text-gray-700 font-medium mb-2">Category</label>
+                    <select id="donateItemCategory" class="w-full px-4 py-2 border border-gray-300 rounded-lg" required>
+                        <option value="books">Textbooks</option>
+                        <option value="electronics">Electronics</option>
+                        <option value="stationery">Stationery</option>
+                        <option value="lab">Lab Equipment</option>
+                        <option value="other">Other</option>
+                    </select>
+                </div>
+                <div class="mb-6">
+                    <label for="donateItemImage" class="block text-gray-700 font-medium mb-2">Upload Image</label>
+                    <input type="file" id="donateItemImage" class="w-full text-gray-700 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" accept="image/*" required>
+                </div>
+                <button type="submit" id="donateItemSubmitBtn" class="w-full bg-blue-600 text-white font-semibold py-3 rounded-lg">List Donation Item</button>
+            </form>
+        </div>
+    </main>
+
+    <div id="alertModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
+        <div class="bg-white p-6 rounded-lg shadow-2xl w-full max-w-sm text-center">
+            <p id="alertMessage" class="text-lg mb-4"></p>
+            <button id="closeAlertModal" class="bg-blue-600 text-white font-semibold py-2 px-6 rounded-lg">OK</button>
+        </div>
+    </div>
+    
+    <script type="module">
+        const firebaseConfig = {
+          apiKey: "AIzaSyCqtPN9O7vnxltylayJzoXY8n_5A9T2D4k",
+          authDomain: "camptrade-1f932.firebaseapp.com",
+          projectId: "camptrade-1f932",
+          storageBucket: "camptrade-1f932.appspot.com",
+          messagingSenderId: "990486537343",
+          appId: "1:990486537343:web:46ba92fe33690d7ebd0b4a"
+        };
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getDatabase, ref, set, push, serverTimestamp, get, update } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-database.js";
+        
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getDatabase(app);
+
+        const donateItemForm = document.getElementById('donateItemForm');
+        const donateItemSubmitBtn = document.getElementById('donateItemSubmitBtn');
+        const alertModal = document.getElementById('alertModal');
+        const alertMessage = document.getElementById('alertMessage');
+        const authLinks = document.getElementById('auth-links');
+        const userMenu = document.getElementById('user-menu');
+        const profileLink = document.getElementById('profileLink');
+        const logoutButton = document.getElementById('logoutBtn');
+        
+        const showAlert = (message, isSuccess = false) => {
+            alertMessage.textContent = message;
+            alertModal.classList.remove('hidden');
+            if (isSuccess) {
+                setTimeout(() => { window.location.href = 'home.html'; }, 2000);
+            }
+        };
+        document.getElementById('closeAlertModal').addEventListener('click', () => alertModal.classList.add('hidden'));
+
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                authLinks.classList.add('hidden');
+                userMenu.classList.remove('hidden');
+                userMenu.classList.add('flex');
+                profileLink.textContent = user.email;
+            } else {
+                window.location.href = 'login.html';
+            }
+        });
+
+        logoutButton.addEventListener('click', async () => {
+            await signOut(auth);
+            window.location.href = 'home.html';
+        });
+
+        donateItemForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            donateItemSubmitBtn.disabled = true;
+            donateItemSubmitBtn.textContent = "Uploading Image...";
+            const imgbbApiKey = "3887fd9c28e5aa8e1a370ccb89a32283";
+            const user = auth.currentUser;
+            const imageFile = document.getElementById('donateItemImage').files[0];
+            if (!imageFile) {
+                showAlert("Please select an image to upload.");
+                donateItemSubmitBtn.disabled = false;
+                donateItemSubmitBtn.textContent = "List Donation Item";
+                return;
+            }
+            const formData = new FormData();
+            formData.append('image', imageFile);
+            try {
+                const response = await fetch(`https://api.imgbb.com/1/upload?key=${imgbbApiKey}`, { method: 'POST', body: formData });
+                const result = await response.json();
+                if (!result.success) { throw new Error(`Image upload failed: ${result.error.message}`); }
+                
+                const imageUrl = result.data.url;
+                donateItemSubmitBtn.textContent = "Saving Details...";
+                const title = document.getElementById('donateItemTitle').value;
+                const description = document.getElementById('donateItemDescription').value;
+                const category = document.getElementById('donateItemCategory').value;
+
+                const itemsRef = ref(db, 'donation-items');
+                const newItemRef = push(itemsRef); 
+                await set(newItemRef, {
+                    title, description, category, imageUrl,
+                    price: 0,
+                    donatorId: user.uid, donatorEmail: user.email, createdAt: serverTimestamp()
+                });
+
+                // --- REWARD SYSTEM LOGIC ---
+                const userRef = ref(db, 'users/' + user.uid);
+                const snapshot = await get(userRef);
+                const currentPoints = snapshot.val().rewardPoints || 0;
+                await update(userRef, { rewardPoints: currentPoints + 50 });
+
+                showAlert("Donation item listed successfully! +50 points!", true);
+
+            } catch (error) {
+                showAlert("Error listing donation item: " + error.message);
+            } finally {
+                donateItemSubmitBtn.disabled = false;
+                donateItemSubmitBtn.textContent = "List Donation Item";
+            }
+        });
+    </script>
+</body>
+</html>
+

@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Transaction Test</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 p-8">
+    <div class="max-w-md mx-auto bg-white p-6 rounded-lg shadow">
+        <h1 class="text-xl font-bold mb-4">Simple Transaction Test</h1>
+        
+        <div class="mb-4">
+            <button id="loginBtn" class="bg-blue-500 text-white px-4 py-2 rounded w-full mb-2">Login</button>
+            <button id="createTxBtn" class="bg-green-500 text-white px-4 py-2 rounded w-full" disabled>Create Transaction</button>
+        </div>
+        
+        <div id="output" class="text-sm bg-gray-100 p-3 rounded min-h-32"></div>
+    </div>
+
+    <script type="module">
+        const firebaseConfig = {
+          apiKey: "AIzaSyCqtPN9O7vnxltylayJzoXY8n_5A9T2D4k",
+          authDomain: "camptrade-1f932.firebaseapp.com",
+          projectId: "camptrade-1f932",
+          storageBucket: "camptrade-1f932.appspot.com",
+          messagingSenderId: "990486537343",
+          appId: "1:990486537343:web:46ba92fe33690d7ebd0b4a"
+        };
+
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getDatabase, ref, push, set, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-database.js";
+        
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getDatabase(app);
+
+        const output = document.getElementById('output');
+        const loginBtn = document.getElementById('loginBtn');
+        const createTxBtn = document.getElementById('createTxBtn');
+
+        function log(message) {
+            output.innerHTML += `<div>${new Date().toLocaleTimeString()}: ${message}</div>`;
+            output.scrollTop = output.scrollHeight;
+        }
+
+        let currentUser = null;
+
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                currentUser = user;
+                log(`✅ Logged in: ${user.uid}`);
+                loginBtn.textContent = 'Logged In';
+                loginBtn.disabled = true;
+                createTxBtn.disabled = false;
+            } else {
+                log('❌ Not logged in');
+                currentUser = null;
+                createTxBtn.disabled = true;
+            }
+        });
+
+        loginBtn.addEventListener('click', async () => {
+            try {
+                log('🔄 Logging in...');
+                await signInAnonymously(auth);
+            } catch (error) {
+                log(`❌ Login failed: ${error.message}`);
+            }
+        });
+
+        createTxBtn.addEventListener('click', async () => {
+            if (!currentUser) {
+                log('❌ Not logged in');
+                return;
+            }
+
+            try {
+                log('🔄 Creating transaction...');
+                
+                // Generate PIN
+                const verificationPin = Math.floor(100000 + Math.random() * 900000).toString();
+                
+                // Create transaction data
+                const transactionData = {
+                    itemId: 'test-item-' + Date.now(),
+                    itemType: 'sell',
+                    itemTitle: 'Test Book',
+                    price: 100,
+                    sellerId: 'test-seller',
+                    buyerId: currentUser.uid,
+                    buyerEmail: currentUser.email || 'anonymous@test.com',
+                    status: 'requested',
+                    verificationPin: verificationPin,
+                    createdAt: serverTimestamp(),
+                    isVerificationUsed: false
+                };
+
+                // Save to database
+                const transactionRef = ref(db, 'transactions');
+                const newTransactionRef = push(transactionRef);
+                await set(newTransactionRef, transactionData);
+                
+                log(`✅ Transaction created!`);
+                log(`📍 Transaction ID: ${newTransactionRef.key}`);
+                log(`🔢 PIN: ${verificationPin}`);
+                
+            } catch (error) {
+                log(`❌ Error: ${error.message}`);
+                console.error('Full error:', error);
+            }
+        });
+
+        log('🚀 System ready');
+    </script>
+</body>
+</html>

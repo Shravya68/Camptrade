@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug Item - CampTrade</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 p-8">
+    <div class="max-w-2xl mx-auto">
+        <h1 class="text-2xl font-bold mb-6">Debug Item Transaction</h1>
+        
+        <div class="bg-white p-6 rounded-lg shadow mb-6">
+            <h2 class="text-lg font-semibold mb-4">System Status</h2>
+            <div id="status-log" class="space-y-2 text-sm">
+                <p>Loading...</p>
+            </div>
+        </div>
+
+        <div class="bg-white p-6 rounded-lg shadow mb-6">
+            <h2 class="text-lg font-semibold mb-4">Mock Item</h2>
+            <div class="border p-4 rounded">
+                <h3 class="font-bold">Physics Textbook</h3>
+                <p class="text-gray-600">Great condition physics book</p>
+                <p class="text-blue-600 font-bold">₹500</p>
+                <button id="debug-buy-btn" class="bg-green-500 text-white px-4 py-2 rounded mt-2">
+                    Debug Buy This Item
+                </button>
+            </div>
+        </div>
+
+        <div class="bg-white p-6 rounded-lg shadow">
+            <h2 class="text-lg font-semibold mb-4">Debug Output</h2>
+            <pre id="debug-output" class="bg-gray-100 p-4 rounded text-xs overflow-auto max-h-96"></pre>
+        </div>
+    </div>
+
+    <!-- Load libraries -->
+    <script src="js/verification.js"></script>
+    <script src="js/firebase-transactions.js"></script>
+    <script src="js/firebase-transactions-fallback.js"></script>
+
+    <script type="module">
+        const firebaseConfig = {
+          apiKey: "AIzaSyCqtPN9O7vnxltylayJzoXY8n_5A9T2D4k",
+          authDomain: "camptrade-1f932.firebaseapp.com",
+          projectId: "camptrade-1f932",
+          storageBucket: "camptrade-1f932.appspot.com",
+          messagingSenderId: "990486537343",
+          appId: "1:990486537343:web:46ba92fe33690d7ebd0b4a"
+        };
+
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, onAuthStateChanged, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getDatabase } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-database.js";
+        
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getDatabase(app);
+
+        const statusLog = document.getElementById('status-log');
+        const debugOutput = document.getElementById('debug-output');
+        const buyBtn = document.getElementById('debug-buy-btn');
+
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const colors = {
+                info: 'text-blue-600',
+                success: 'text-green-600',
+                error: 'text-red-600',
+                warning: 'text-yellow-600'
+            };
+            
+            const logEntry = document.createElement('div');
+            logEntry.className = colors[type];
+            logEntry.textContent = `[${timestamp}] ${message}`;
+            statusLog.appendChild(logEntry);
+            
+            debugOutput.textContent += `[${timestamp}] ${type.toUpperCase()}: ${message}\n`;
+            debugOutput.scrollTop = debugOutput.scrollHeight;
+        }
+
+        let currentUser = null;
+        let transactionManager = null;
+
+        // Initialize system
+        log('🚀 Initializing system...', 'info');
+
+        // Check if classes are loaded
+        if (typeof FirebaseTransactionsFallback !== 'undefined') {
+            log('✅ FirebaseTransactionsFallback class loaded', 'success');
+            transactionManager = new FirebaseTransactionsFallback(db);
+            log('✅ Transaction manager initialized', 'success');
+        } else {
+            log('❌ FirebaseTransactionsFallback class not found', 'error');
+        }
+
+        if (typeof TransactionVerification !== 'undefined') {
+            log('✅ TransactionVerification class loaded', 'success');
+        } else {
+            log('❌ TransactionVerification class not found', 'error');
+        }
+
+        // Auth state
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                currentUser = user;
+                log(`✅ User authenticated: ${user.uid}`, 'success');
+                buyBtn.disabled = false;
+            } else {
+                log('⚠️ No user authenticated - signing in anonymously...', 'warning');
+                signInAnonymously(auth).catch(error => {
+                    log('❌ Anonymous sign-in failed: ' + error.message, 'error');
+                });
+            }
+        });
+
+        // Debug buy button
+        buyBtn.addEventListener('click', async () => {
+            if (!currentUser) {
+                log('❌ No user authenticated', 'error');
+                return;
+            }
+
+            if (!transactionManager) {
+                log('❌ Transaction manager not initialized', 'error');
+                return;
+            }
+
+            try {
+                log('🔄 Creating debug transaction...', 'info');
+                
+                const mockItemData = {
+                    itemId: 'debug-item-' + Date.now(),
+                    itemType: 'sell',
+                    itemTitle: 'Debug Physics Textbook',
+                    price: 500,
+                    sellerId: 'debug-seller-123',
+                    buyerId: currentUser.uid,
+                    buyerEmail: currentUser.email || 'debug@test.com'
+                };
+
+                log('📝 Transaction data: ' + JSON.stringify(mockItemData, null, 2), 'info');
+
+                const result = await transactionManager.createTransaction(mockItemData);
+                
+                log('✅ Transaction created successfully!', 'success');
+                log('📍 Transaction ID: ' + result.transactionId, 'success');
+                log('🔢 PIN: ' + result.verificationPin, 'success');
+                
+                debugOutput.textContent += `\n=== TRANSACTION RESULT ===\n${JSON.stringify(result, null, 2)}\n`;
+                
+            } catch (error) {
+                log('❌ Transaction creation failed: ' + error.message, 'error');
+                debugOutput.textContent += `\n=== ERROR DETAILS ===\n${error.stack}\n`;
+            }
+        });
+
+        log('🎯 Debug system ready', 'success');
+    </script>
+</body>
+</html>

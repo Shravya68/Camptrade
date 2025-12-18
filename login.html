@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Log In - CampTrade</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style> body { font-family: 'Inter', sans-serif; } </style>
+</head>
+<body class="bg-gray-50 flex items-center justify-center min-h-screen">
+    <main class="w-full max-w-md p-6">
+        <div class="text-center mb-8">
+            <a href="index.html" class="text-3xl font-bold text-blue-600">CampTrade</a>
+        </div>
+        <h2 class="text-3xl font-bold text-center mb-8">Welcome Back!</h2>
+        <form id="loginForm" class="bg-white p-8 rounded-lg shadow-lg">
+            <div class="mb-4">
+                <label for="loginEmail" class="block text-gray-700 font-medium mb-2">Email Address</label>
+                <input type="email" id="loginEmail" class="w-full px-4 py-2 border border-gray-300 rounded-lg" required>
+            </div>
+            <div class="mb-6">
+                <label for="loginPassword" class="block text-gray-700 font-medium mb-2">Password</label>
+                <input type="password" id="loginPassword" class="w-full px-4 py-2 border border-gray-300 rounded-lg" required>
+            </div>
+            <button type="submit" id="loginSubmitBtn" class="w-full bg-blue-600 text-white font-semibold py-3 rounded-lg">Log In</button>
+            <a href="index.html" class="w-full mt-4 text-center text-gray-600 hover:text-blue-600 inline-block">Cancel</a>
+        </form>
+        <p class="text-center mt-4 text-gray-600">Don't have an account? <a href="signup.html" class="text-blue-600 hover:underline">Sign Up</a></p>
+    </main>
+
+    <div id="alertModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
+        <div class="bg-white p-6 rounded-lg shadow-2xl w-full max-w-sm text-center">
+            <p id="alertMessage" class="text-lg mb-4"></p>
+            <button id="closeAlertModal" class="bg-blue-600 text-white font-semibold py-2 px-6 rounded-lg">OK</button>
+        </div>
+    </div>
+
+    <script type="module">
+        const firebaseConfig = {
+          apiKey: "AIzaSyCqtPN9O7vnxltylayJzoXY8n_5A9T2D4k",
+          authDomain: "camptrade-1f932.firebaseapp.com",
+          projectId: "camptrade-1f932",
+          storageBucket: "camptrade-1f932.appspot.com",
+          messagingSenderId: "990486537343",
+          appId: "1:990486537343:web:46ba92fe33690d7ebd0b4a"
+        };
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        
+        const loginForm = document.getElementById('loginForm');
+        const loginSubmitBtn = document.getElementById('loginSubmitBtn');
+        const alertModal = document.getElementById('alertModal');
+        const alertMessage = document.getElementById('alertMessage');
+        const closeAlertModal = document.getElementById('closeAlertModal');
+        
+        const showAlert = (message) => {
+            alertMessage.textContent = message;
+            alertModal.classList.remove('hidden');
+        };
+        closeAlertModal.addEventListener('click', () => alertModal.classList.add('hidden'));
+
+        loginForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            loginSubmitBtn.disabled = true;
+            loginSubmitBtn.textContent = "Logging In...";
+            const email = document.getElementById('loginEmail').value;
+            const password = document.getElementById('loginPassword').value;
+            try {
+                await signInWithEmailAndPassword(auth, email, password);
+                showAlert("Logged in successfully! Redirecting...");
+                setTimeout(() => { window.location.href = 'index.html'; }, 1500);
+            } catch (error) {
+                showAlert(error.message);
+                loginSubmitBtn.disabled = false;
+                loginSubmitBtn.textContent = "Log In";
+            }
+        });
+    </script>
+</body>
+</html>
+

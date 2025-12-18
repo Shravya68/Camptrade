@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Item Details - CampTrade</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style> 
+        body { font-family: 'Inter', sans-serif; } 
+        .item-card-image { aspect-ratio: 4 / 3; object-fit: cover; }
+    </style>
+</head>
+<body class="bg-gray-100">
+
+    <header class="bg-white shadow-md sticky top-0 z-50">
+        <nav class="container mx-auto px-6 py-4 flex justify-between items-center">
+             <a href="index.html" class="text-2xl font-bold text-blue-600">CampTrade</a>
+             <div class="hidden md:flex items-center space-x-6">
+                <a href="index.html" class="text-gray-600 hover:text-blue-600">Browse</a>
+                <a href="sell.html" class="text-gray-600 hover:text-blue-600">Sell</a>
+                <a href="rent.html" class="text-gray-600 hover:text-blue-600">Rent</a>
+                <a href="donate.html" class="text-gray-600 hover:text-blue-600">Donate</a>
+                <a href="wishlist.html" class="text-gray-600 hover:text-blue-600">Wishlist</a>
+            </div>
+             <div id="auth-links" class="flex items-center space-x-4">
+                <a href="login.html" class="px-4 py-2 text-gray-700 font-semibold border border-gray-300 rounded-lg hover:bg-gray-100">Log In</a>
+                <a href="signup.html" class="px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700">Sign Up</a>
+            </div>
+             <div id="user-menu" class="hidden items-center space-x-4">
+                 <a href="profile.html" id="profileLink" class="font-semibold text-gray-700 hover:text-blue-600"></a>
+                 <button id="logoutBtn" class="px-4 py-2 bg-red-500 text-white font-semibold rounded-lg hover:bg-red-600">Log Out</button>
+            </div>
+        </nav>
+    </header>
+
+    <main id="item-details-container" class="container mx-auto px-6 py-12">
+        <p class="text-center text-gray-500">Loading item details...</p>
+    </main>
+
+    <footer class="bg-gray-800 text-white mt-20">
+        <div class="container mx-auto px-6 py-8 text-center">
+            <p>&copy; 2025 CampTrade. Built by students, for students.</p>
+        </div>
+    </footer>
+    
+    <div id="alertModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
+        <div class="bg-white p-6 rounded-lg shadow-2xl w-full max-w-sm text-center">
+            <p id="alertMessage" class="text-lg mb-4"></p>
+            <button id="closeAlertModal" class="bg-blue-600 text-white font-semibold py-2 px-6 rounded-lg">OK</button>
+        </div>
+    </div>
+
+    <!-- Load verification libraries -->
+    <script src="js/verification.js"></script>
+    <script src="js/firebase-transactions.js"></script>
+    <script src="js/firebase-transactions-fallback.js"></script>
+    
+    <script type="module">
+        const firebaseConfig = {
+          apiKey: "AIzaSyCqtPN9O7vnxltylayJzoXY8n_5A9T2D4k",
+          authDomain: "camptrade-1f932.firebaseapp.com",
+          projectId: "camptrade-1f932",
+          storageBucket: "camptrade-1f932.appspot.com",
+          messagingSenderId: "990486537343",
+          appId: "1:990486537343:web:46ba92fe33690d7ebd0b4a"
+        };
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getDatabase, ref, get } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-database.js";
+        import { getFunctions } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-functions.js";
+        
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getDatabase(app);
+        const functions = getFunctions(app);
+        
+        // Initialize transaction manager (using fallback for now)
+        console.log('Initializing transaction manager...');
+        const transactionManager = new FirebaseTransactionsFallback(db);
+        console.log('Transaction manager ready');
+
+        const container = document.getElementById('item-details-container');
+        const authLinks = document.getElementById('auth-links');
+        const userMenu = document.getElementById('user-menu');
+        const profileLink = document.getElementById('profileLink');
+
+        const showAlert = (message) => {
+            document.getElementById('alertMessage').textContent = message;
+            document.getElementById('alertModal').classList.remove('hidden');
+        };
+        document.getElementById('closeAlertModal').addEventListener('click', () => {
+            document.getElementById('alertModal').classList.add('hidden');
+        });
+
+        onAuthStateChanged(auth, (user) => {
+             if (user) {
+                authLinks.classList.add('hidden');
+                userMenu.classList.remove('hidden');
+                userMenu.classList.add('flex');
+                profileLink.textContent = user.email;
+            } else {
+                authLinks.classList.remove('hidden');
+                userMenu.classList.add('hidden');
+            }
+        });
+        document.getElementById('logoutBtn').addEventListener('click', () => signOut(auth).then(() => window.location.href = 'index.html'));
+
+        const loadItemDetails = async () => {
+            const params = new URLSearchParams(window.location.search);
+            const itemId = params.get('id');
+            const itemType = params.get('type');
+
+            if (!itemId || !itemType) {
+                container.innerHTML = `<p class="text-center text-red-500">Item not found. Please go back to the <a href="home.html" class="text-blue-600">homepage</a>.</p>`;
+                return;
+            }
+
+            let path = '';
+            if (itemType === 'sell') path = 'items';
+            else if (itemType === 'rent') path = 'rent-items';
+            else if (itemType === 'donate') path = 'donation-items';
+            else {
+                 container.innerHTML = `<p class="text-center text-red-500">Invalid item type.</p>`;
+                 return;
+            }
+
+            const itemRef = ref(db, `${path}/${itemId}`);
+
+            try {
+                const snapshot = await get(itemRef);
+                if (snapshot.exists()) {
+                    const item = snapshot.val();
+                    const sellerEmail = item.sellerEmail || item.listerEmail || item.donatorEmail;
+                    const sellerId = item.sellerId || item.listerId || item.donatorId;
+
+                    let priceHTML = '';
+                    if (itemType === 'donate') priceHTML = `<p class="text-3xl font-bold text-green-600 my-4">Free (Donation)</p>`;
+                    else if (itemType === 'rent') priceHTML = `<p class="text-3xl font-bold text-blue-600 my-4">₹${item.price} / day</p>`;
+                    else priceHTML = `<p class="text-3xl font-bold text-blue-600 my-4">₹${item.price}</p>`;
+
+                    container.innerHTML = `
+                        <div class="bg-white p-8 rounded-lg shadow-lg">
+                             <div class="md:flex md:space-x-8">
+                                <div class="md:w-1/2">
+                                    <img src="${item.imageUrl}" alt="${item.title}" class="w-full rounded-lg shadow-md item-card-image">
+                                </div>
+                                <div class="md:w-1/2 mt-6 md:mt-0">
+                                    <p class="text-sm text-gray-500">${item.category.charAt(0).toUpperCase() + item.category.slice(1)}</p>
+                                    <h1 class="text-4xl font-bold mt-1">${item.title}</h1>
+                                    ${priceHTML}
+                                    <h2 class="font-semibold text-xl">Description</h2>
+                                    <p class="text-gray-600 mt-2 mb-6">${item.description}</p>
+                                    <h2 class="font-semibold text-xl">Seller Information</h2>
+                                    <p class="text-gray-600 mt-2">Listed by: ${sellerEmail}</p>
+                                    <div class="flex space-x-4 mt-6">
+                                        <button id="contactSellerBtn" class="w-full text-center bg-blue-500 text-white font-semibold py-3 rounded-lg hover:bg-blue-600">Chat with Seller</button>
+                                        <button id="buyItemBtn" class="w-full text-center bg-green-500 text-white font-semibold py-3 rounded-lg hover:bg-green-600">Buy This Item</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    document.getElementById('contactSellerBtn').addEventListener('click', () => {
+                        window.location.href = `profile.html?startChatWith=${sellerId}&email=${sellerEmail}`;
+                    });
+
+                    document.getElementById('buyItemBtn').addEventListener('click', async () => {
+                        const currentUser = auth.currentUser;
+                        if (!currentUser) {
+                             showAlert("Please log in to buy an item.");
+                            setTimeout(() => { window.location.href = 'login.html'; }, 2000);
+                            return;
+                        }
+                        if (currentUser.uid === sellerId) {
+                            showAlert("You cannot buy your own item.");
+                            return;
+                        }
+
+                        if (!confirm("Are you sure you want to start this transaction? This will create a secure verification system.")) return;
+
+                        try {
+                            // Show loading state
+                            const buyBtn = document.getElementById('buyItemBtn');
+                            const originalText = buyBtn.textContent;
+                            buyBtn.textContent = 'Creating Transaction...';
+                            buyBtn.disabled = true;
+
+                            const result = await transactionManager.createTransaction({
+                                itemId: itemId,
+                                itemType: itemType,
+                                itemTitle: item.title,
+                                price: item.price || 0,
+                                sellerId: sellerId,
+                                buyerId: currentUser.uid,
+                                buyerEmail: currentUser.email
+                            });
+
+                            showAlert("Transaction created successfully! Check your profile for verification details.");
+                            setTimeout(() => { window.location.href = 'profile.html'; }, 2500);
+                        } catch (error) {
+                            showAlert("Error creating transaction: " + error.message);
+                            // Reset button
+                            const buyBtn = document.getElementById('buyItemBtn');
+                            buyBtn.textContent = originalText;
+                            buyBtn.disabled = false;
+                        }
+                    });
+                } else {
+                     container.innerHTML = `<p class="text-center text-red-500">Item not found.</p>`;
+                }
+            } catch (error) {
+                console.error("Error fetching item details:", error);
+                 container.innerHTML = `<p class="text-center text-red-500">Error loading item details.</p>`;
+            }
+        };
+
+        loadItemDetails();
+    </script>
+</body>
+</html>
+

@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug Transaction System - CampTrade</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 p-8">
+    <div class="max-w-2xl mx-auto">
+        <h1 class="text-2xl font-bold mb-6">Debug Transaction System</h1>
+        
+        <div class="bg-white p-6 rounded-lg shadow mb-6">
+            <h2 class="text-lg font-semibold mb-4">System Status</h2>
+            <div id="status-log" class="space-y-2 text-sm">
+                <p>Loading...</p>
+            </div>
+        </div>
+
+        <div class="bg-white p-6 rounded-lg shadow mb-6">
+            <h2 class="text-lg font-semibold mb-4">Test Transaction</h2>
+            <button id="test-create" class="bg-blue-500 text-white px-4 py-2 rounded mr-2">Create Test Transaction</button>
+            <button id="test-verify" class="bg-green-500 text-white px-4 py-2 rounded">Test Verification</button>
+        </div>
+
+        <div class="bg-white p-6 rounded-lg shadow">
+            <h2 class="text-lg font-semibold mb-4">Debug Output</h2>
+            <pre id="debug-output" class="bg-gray-100 p-4 rounded text-xs overflow-auto max-h-96"></pre>
+        </div>
+    </div>
+
+    <!-- Load libraries -->
+    <script src="js/verification.js"></script>
+    <script src="js/firebase-transactions.js"></script>
+    <script src="js/firebase-transactions-fallback.js"></script>
+
+    <script type="module">
+        const firebaseConfig = {
+          apiKey: "AIzaSyCqtPN9O7vnxltylayJzoXY8n_5A9T2D4k",
+          authDomain: "camptrade-1f932.firebaseapp.com",
+          projectId: "camptrade-1f932",
+          storageBucket: "camptrade-1f932.appspot.com",
+          messagingSenderId: "990486537343",
+          appId: "1:990486537343:web:46ba92fe33690d7ebd0b4a"
+        };
+
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getDatabase } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-database.js";
+        import { getFunctions } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-functions.js";
+        
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getDatabase(app);
+        const functions = getFunctions(app);
+
+        const statusLog = document.getElementById('status-log');
+        const debugOutput = document.getElementById('debug-output');
+
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const colors = {
+                info: 'text-blue-600',
+                success: 'text-green-600',
+                error: 'text-red-600',
+                warning: 'text-yellow-600'
+            };
+            
+            const logEntry = document.createElement('div');
+            logEntry.className = colors[type];
+            logEntry.textContent = `[${timestamp}] ${message}`;
+            statusLog.appendChild(logEntry);
+            
+            // Also add to debug output
+            debugOutput.textContent += `[${timestamp}] ${type.toUpperCase()}: ${message}\n`;
+            debugOutput.scrollTop = debugOutput.scrollHeight;
+        }
+
+        // Initialize system
+        log('Initializing Firebase...', 'info');
+        
+        let transactionManager;
+        let currentUser = null;
+
+        // Check Firebase Functions
+        try {
+            transactionManager = new FirebaseTransactions(functions);
+            log('✅ Firebase Functions initialized', 'success');
+        } catch (error) {
+            log('⚠️ Firebase Functions failed, using fallback', 'warning');
+            transactionManager = new FirebaseTransactionsFallback(db);
+        }
+
+        // Check verification system
+        try {
+            const verificationSystem = new TransactionVerification();
+            log('✅ Verification system initialized', 'success');
+        } catch (error) {
+            log('❌ Verification system failed: ' + error.message, 'error');
+        }
+
+        // Auth state
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                currentUser = user;
+                log(`✅ User authenticated: ${user.email}`, 'success');
+            } else {
+                log('⚠️ No user authenticated', 'warning');
+            }
+        });
+
+        // Test transaction creation
+        document.getElementById('test-create').addEventListener('click', async () => {
+            if (!currentUser) {
+                log('❌ Please log in first', 'error');
+                return;
+            }
+
+            try {
+                log('Creating test transaction...', 'info');
+                
+                const testData = {
+                    itemId: 'test-item-123',
+                    itemType: 'sell',
+                    itemTitle: 'Test Physics Book',
+                    price: 500,
+                    sellerId: 'test-seller-456',
+                    buyerId: currentUser.uid,
+                    buyerEmail: currentUser.email
+                };
+
+                const result = await transactionManager.createTransaction(testData);
+                log('✅ Transaction created successfully!', 'success');
+                log(`Transaction ID: ${result.transactionId}`, 'info');
+                log(`Verification PIN: ${result.verificationPin}`, 'info');
+                
+                debugOutput.textContent += `\nTransaction Result:\n${JSON.stringify(result, null, 2)}\n`;
+                
+            } catch (error) {
+                log('❌ Transaction creation failed: ' + error.message, 'error');
+                debugOutput.textContent += `\nError Details:\n${error.stack}\n`;
+            }
+        });
+
+        // Test verification
+        document.getElementById('test-verify').addEventListener('click', async () => {
+            try {
+                log('Testing verification system...', 'info');
+                
+                const verificationSystem = new TransactionVerification();
+                
+                // Test PIN validation
+                const testPins = ['123456', '12345', 'abcdef'];
+                testPins.forEach(pin => {
+                    const isValid = verificationSystem.validatePIN(pin);
+                    log(`PIN "${pin}" validation: ${isValid}`, isValid ? 'success' : 'warning');
+                });
+                
+                log('✅ Verification tests completed', 'success');
+                
+            } catch (error) {
+                log('❌ Verification test failed: ' + error.message, 'error');
+            }
+        });
+
+        log('Debug system ready', 'success');
+    </script>
+</body>
+</html>

@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Transaction Verification Test - CampTrade</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>body { font-family: 'Inter', sans-serif; }</style>
+</head>
+<body class="bg-gray-100 p-8">
+    <div class="max-w-4xl mx-auto">
+        <h1 class="text-3xl font-bold mb-8 text-center">Transaction Verification System Test</h1>
+        
+        <!-- Test Controls -->
+        <div class="bg-white p-6 rounded-lg shadow-lg mb-8">
+            <h2 class="text-xl font-semibold mb-4">Test Controls</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <button id="generateQR" class="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600">
+                    Generate Test QR Code
+                </button>
+                <button id="testPIN" class="bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600">
+                    Test PIN Validation
+                </button>
+                <button id="scanQR" class="bg-purple-500 text-white px-4 py-2 rounded-md hover:bg-purple-600">
+                    Test QR Scanner
+                </button>
+            </div>
+        </div>
+
+        <!-- Demo Transaction -->
+        <div class="bg-white p-6 rounded-lg shadow-lg mb-8">
+            <h2 class="text-xl font-semibold mb-4">Demo Transaction</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <!-- Buyer View -->
+                <div class="border-l-4 border-blue-500 pl-4">
+                    <h3 class="font-semibold text-blue-600 mb-2">Buyer View</h3>
+                    <div class="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                        <p><strong>Buying:</strong> Physics Textbook</p>
+                        <div class="mt-3">
+                            <p class="font-medium mb-2">Your Verification PIN:</p>
+                            <p id="demo-pin" class="text-2xl font-mono text-blue-600 tracking-widest bg-white p-2 rounded border">123456</p>
+                            <div class="mt-3">
+                                <p class="font-medium mb-2">QR Code:</p>
+                                <canvas id="demo-qr-canvas"></canvas>
+                            </div>
+                            <p class="text-xs text-gray-500 mt-2">Show either the PIN or QR code to the seller during exchange.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Seller View -->
+                <div class="border-l-4 border-green-500 pl-4">
+                    <h3 class="font-semibold text-green-600 mb-2">Seller View</h3>
+                    <div class="bg-green-50 p-4 rounded-lg border border-green-200">
+                        <p><strong>Selling:</strong> Physics Textbook to buyer@example.com</p>
+                        <div class="mt-3">
+                            <button id="demo-verify" class="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600">
+                                Verify Exchange
+                            </button>
+                            <p class="text-xs text-gray-500 mt-2">Click to verify PIN or scan QR code from buyer</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Test Results -->
+        <div class="bg-white p-6 rounded-lg shadow-lg">
+            <h2 class="text-xl font-semibold mb-4">Test Results</h2>
+            <div id="test-results" class="space-y-2">
+                <p class="text-gray-500">No tests run yet.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Load verification libraries -->
+    <script src="js/verification.js"></script>
+    <script src="js/firebase-transactions.js"></script>
+
+    <script>
+        // Initialize verification system
+        const verificationSystem = new TransactionVerification();
+        
+        // Test data
+        const testTransactionData = {
+            txId: "test-tx-123",
+            hash: "abcd1234efgh5678",
+            timestamp: Date.now()
+        };
+        
+        const testQRData = JSON.stringify(testTransactionData);
+        
+        // Log function
+        function logResult(message, type = 'info') {
+            const resultsDiv = document.getElementById('test-results');
+            const colors = {
+                success: 'text-green-600 bg-green-50 border-green-200',
+                error: 'text-red-600 bg-red-50 border-red-200',
+                info: 'text-blue-600 bg-blue-50 border-blue-200'
+            };
+            
+            const logEntry = document.createElement('div');
+            logEntry.className = `p-3 rounded-md border ${colors[type]} mb-2`;
+            logEntry.innerHTML = `<span class="text-xs text-gray-500">${new Date().toLocaleTimeString()}</span> - ${message}`;
+            
+            if (resultsDiv.firstChild.textContent === 'No tests run yet.') {
+                resultsDiv.innerHTML = '';
+            }
+            
+            resultsDiv.appendChild(logEntry);
+        }
+
+        // Test QR Code Generation
+        document.getElementById('generateQR').addEventListener('click', async () => {
+            try {
+                await verificationSystem.generateQRCode(testQRData, 'demo-qr-canvas');
+                logResult('✅ QR Code generated successfully', 'success');
+            } catch (error) {
+                logResult('❌ QR Code generation failed: ' + error.message, 'error');
+            }
+        });
+
+        // Test PIN Validation
+        document.getElementById('testPIN').addEventListener('click', () => {
+            const testCases = [
+                { pin: '123456', expected: true },
+                { pin: '12345', expected: false },
+                { pin: '1234567', expected: false },
+                { pin: 'abcdef', expected: false },
+                { pin: '12345a', expected: false }
+            ];
+            
+            let passed = 0;
+            testCases.forEach(test => {
+                const result = verificationSystem.validatePIN(test.pin);
+                if (result === test.expected) {
+                    passed++;
+                    logResult(`✅ PIN "${test.pin}" validation: ${result} (expected: ${test.expected})`, 'success');
+                } else {
+                    logResult(`❌ PIN "${test.pin}" validation: ${result} (expected: ${test.expected})`, 'error');
+                }
+            });
+            
+            logResult(`PIN Validation Tests: ${passed}/${testCases.length} passed`, passed === testCases.length ? 'success' : 'error');
+        });
+
+        // Test QR Scanner
+        document.getElementById('scanQR').addEventListener('click', () => {
+            verificationSystem.startQRScanner(
+                (result) => {
+                    logResult('✅ QR Code scanned successfully: ' + result, 'success');
+                },
+                (error) => {
+                    logResult('❌ QR Scanner error: ' + error.message, 'error');
+                }
+            );
+        });
+
+        // Demo verification modal
+        document.getElementById('demo-verify').addEventListener('click', () => {
+            const modal = document.createElement('div');
+            modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+            modal.innerHTML = `
+                <div class="bg-white p-6 rounded-lg max-w-md w-full mx-4">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-lg font-semibold">Demo Verification</h3>
+                        <button onclick="this.closest('.fixed').remove()" class="text-gray-500 hover:text-gray-700">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                            </svg>
+                        </button>
+                    </div>
+                    <div id="demo-verification-ui"></div>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+            
+            const container = modal.querySelector('#demo-verification-ui');
+            const verificationUI = verificationSystem.createVerificationUI(
+                'demo-tx-123',
+                testQRData,
+                (txId, code, type) => {
+                    // Demo verification handler
+                    if (type === 'pin' && code === '123456') {
+                        logResult('✅ Demo PIN verification successful!', 'success');
+                        modal.remove();
+                    } else if (type === 'qr') {
+                        try {
+                            const qrData = JSON.parse(code);
+                            if (qrData.txId === testTransactionData.txId && qrData.hash === testTransactionData.hash) {
+                                logResult('✅ Demo QR verification successful!', 'success');
+                                modal.remove();
+                            } else {
+                                logResult('❌ Demo QR verification failed: Invalid data', 'error');
+                            }
+                        } catch {
+                            logResult('❌ Demo QR verification failed: Invalid format', 'error');
+                        }
+                    } else {
+                        logResult('❌ Demo PIN verification failed: Wrong PIN', 'error');
+                    }
+                }
+            );
+            container.appendChild(verificationUI);
+        });
+
+        // Generate demo QR code on load
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                verificationSystem.generateQRCode(testQRData, 'demo-qr-canvas').catch(console.error);
+            }, 1000);
+        });
+    </script>
+</body>
+</html>
