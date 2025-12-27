@@ -367,4 +367,5 @@ This project is part of CampTrade - A student marketplace application.
 
 **Built with ❤️ for campus communities**
 
+
 *Making peer-to-peer transactions safer and easier for students everywhere.*
